@@ -1,14 +1,17 @@
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
 const app = express();
+
+// vega-providers প্যাকেজ রিকোয়ার করা
+const vega = require('vega-providers');
 
 app.use(cors());
 
 app.get('/', (req, res) => {
-  res.send('Vega Streaming API is Running Successfully!');
+  res.send('Vega Streaming API with vega-providers is Running!');
 });
 
+// রিয়েল মুভির নাম অনুযায়ী vega-providers থেকে স্ট্রিম খোঁজার রাউট
 app.get('/api/stream', async (req, res) => {
   const { title, year, provider } = req.query;
   
@@ -17,33 +20,43 @@ app.get('/api/stream', async (req, res) => {
   }
 
   try {
-    console.log(`Processing stream for: ${title} (${year}) via ${provider}`);
+    const selectedProvider = provider || 'vegamovies';
+    console.log(`Searching on ${selectedProvider} for: ${title} (${year})`);
 
-    // বিভিন্ন ওপেন-সোর্স পাবলিক স্ট্রিম লিংক বা ট্রেলারের লিস্ট, যাতে প্রতিবার আলাদা ভিডিও আসে
-    const sampleStreams = [
-      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
-      'https://streaming-io.netlify.app/sample.m3u8'
-    ];
-
-    // মুভির নামের লেংথ বা হ্যাশ অনুযায়ী একটি স্ট্রিম সিলেক্ট করা হবে
-    let selectedUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-    if (title.toLowerCase().includes('avatar')) {
-      selectedUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+    // vega-providers ব্যবহার করে সার্চ করা
+    let streams = [];
+    
+    try {
+      // vega-providers এর সাধারণত search এবং sources ফাংশন থাকে
+      const searchResults = await vega.search(selectedProvider, title);
+      
+      if (searchResults && searchResults.length > 0) {
+        // প্রথম মুভি বা রেজাল্ট থেকে স্ট্রিম সোর্স ফেচ করা
+        const mediaId = searchResults[0].id || searchResults[0].url;
+        const fetchedStreams = await vega.getStream(selectedProvider, mediaId);
+        
+        if (fetchedStreams && fetchedStreams.length > 0) {
+          streams = fetchedStreams;
+        }
+      }
+    } catch (scrapeErr) {
+      console.error("Scraping Error:", scrapeErr.message);
     }
 
-    res.json({
-      success: true,
-      movie: title,
-      year: year || '',
-      provider: provider || 'VegaMovies',
-      streams: [
-        {
-          quality: '1080p',
-          url: selectedUrl
-        }
-      ]
-    });
+    // যদি vega-providers থেকে লিংক পাওয়া যায়
+    if (streams.length > 0) {
+      res.json({
+        success: true,
+        provider: selectedProvider,
+        streams: streams
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        error: 'No streams found from this provider. Try another provider.' 
+      });
+    }
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
