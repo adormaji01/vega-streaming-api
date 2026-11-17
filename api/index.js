@@ -6,15 +6,19 @@ const app = express();
 
 app.use(cors());
 
-// ১. স্ট্রিম ফেচিং রাউট
+// Root route
+app.get('/', (req, res) => {
+  res.send('Vega Streaming API is Running Successfully!');
+});
+
+// Stream fetching route
 app.get('/api/stream', async (req, res) => {
   const { title, year, provider } = req.query;
-
+  
   if (!title) return res.status(400).json({ success: false, error: 'Movie title is required' });
 
   try {
-    // এখানে vega-providers এর লজিক বা আপনার কাস্টম স্ক্র্যাপিং কোড বসবে
-    // ডেমো রেসপন্স (প্রোভাইডার যুক্ত করলে আসল লিংক আসবে):
+    // Working test HLS stream that will play immediately in your Artplayer
     res.json({
       success: true,
       provider: provider || 'VegaMovies',
@@ -22,7 +26,7 @@ app.get('/api/stream', async (req, res) => {
         {
           quality: '1080p',
           url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-          headers: { Referer: 'https://vegamovies.gd/' }
+          headers: { Referer: 'https://google.com/' }
         }
       ]
     });
@@ -31,7 +35,7 @@ app.get('/api/stream', async (req, res) => {
   }
 });
 
-// ২. প্রক্সি রাউট (CORS বা 403 Forbidden এড়াতে)
+// Proxy route
 app.get('/api/proxy', async (req, res) => {
   const { url, referer } = req.query;
   if (!url) return res.status(400).send('URL required');
